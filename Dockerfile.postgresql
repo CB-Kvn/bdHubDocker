@@ -1,0 +1,22 @@
+FROM postgres:15-alpine
+
+# Instalar dependencias necesarias
+RUN apk add --no-cache bash dcron
+
+# Crear directorio para scripts
+RUN mkdir -p /scripts
+
+# Hacer los scripts ejecutables
+COPY scripts/init_postgresql.sh /scripts/
+COPY scripts/setup_cron.sh /scripts/
+COPY scripts/auto_backup.sh /scripts/
+RUN chmod +x /scripts/*.sh
+
+# Crear directorio para logs de backup
+RUN mkdir -p /var/log/backup
+
+# Exponer puerto
+EXPOSE 5432
+
+# Comando personalizado que inicia PostgreSQL y ejecuta scripts de inicialización
+CMD ["/bin/bash", "-c", "docker-entrypoint.sh postgres & sleep 15 && /scripts/init_postgresql.sh && /scripts/setup_cron.sh && wait"]

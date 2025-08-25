@@ -1,0 +1,24 @@
+FROM mongo:7.0
+
+# Instalar dependencias necesarias
+RUN apt-get update && apt-get install -y \
+    cron \
+    && rm -rf /var/lib/apt/lists/*
+
+# Crear directorio para scripts
+RUN mkdir -p /scripts
+
+# Hacer los scripts ejecutables
+COPY scripts/init_mongodb.sh /scripts/
+COPY scripts/setup_cron.sh /scripts/
+COPY scripts/auto_backup.sh /scripts/
+RUN chmod +x /scripts/*.sh
+
+# Crear directorio para logs de backup
+RUN mkdir -p /var/log/backup
+
+# Exponer puerto
+EXPOSE 27017
+
+# Comando personalizado que inicia MongoDB y ejecuta scripts de inicialización
+CMD ["/bin/bash", "-c", "docker-entrypoint.sh mongod & sleep 20 && /scripts/init_mongodb.sh && /scripts/setup_cron.sh && wait"]

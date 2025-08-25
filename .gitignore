@@ -1,0 +1,32 @@
+# Archivos temporales
+*.tmp
+*.log
+*.swp
+*.swo
+*~
+
+# Archivos de Docker
+.dockerignore
+
+# Archivos de entorno (mantener .env como ejemplo pero comentado)
+# .env
+
+# Archivos de backup grandes
+*.bak
+
+# Directorios de datos de contenedores
+data/
+volumes/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de IDE
+.vscode/
+.idea/
+*.suo
+*.user
+
+# Archivos SQL temporales
+create_sp_dummy.sql

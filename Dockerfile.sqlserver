@@ -1,0 +1,40 @@
+FROM mcr.microsoft.com/mssql/server:2022-latest
+
+# Cambiar a usuario root para instalar dependencias
+USER root
+
+# Instalar dependencias necesarias
+RUN apt-get update && apt-get install -y \
+    cron \
+    wget \
+    gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Descargar e instalar sqlcmd directamente
+RUN wget -qO- https://packages.microsoft.com/keys/microsoft.asc | apt-key add - \
+    && echo "deb [arch=amd64] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" > /etc/apt/sources.list.d/mssql-release.list \
+    && apt-get update \
+    && ACCEPT_EULA=Y apt-get install -y mssql-tools18 \
+    && ln -s /opt/mssql-tools18/bin/sqlcmd /usr/local/bin/sqlcmd \
+    && rm -rf /var/lib/apt/lists/*
+
+# Crear directorio para scripts
+RUN mkdir -p /scripts
+
+# Hacer los scripts ejecutables
+COPY scripts/init_sqlserver.sh /scripts/
+COPY scripts/setup_cron.sh /scripts/
+COPY scripts/auto_backup.sh /scripts/
+RUN chmod +x /scripts/*.sh
+
+# Crear directorio para logs de backup
+RUN mkdir -p /var/log/backup
+
+# Volver al usuario mssql
+USER mssql
+
+# Exponer puerto
+EXPOSE 1433
+
+# Comando personalizado que inicia SQL Server y ejecuta scripts de inicialización
+CMD ["/bin/bash", "-c", "/opt/mssql/bin/sqlservr & sleep 30 && /scripts/init_sqlserver.sh && /scripts/setup_cron.sh && wait"]

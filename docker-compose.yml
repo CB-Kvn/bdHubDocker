@@ -1,0 +1,152 @@
+version: '3.8'
+
+services:
+  # SQL Server
+  sqlserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.sqlserver
+    container_name: sqlserver_db
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=${SQLSERVER_SA_PASSWORD}
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+      - ./backups:/backups
+      - ./scripts:/scripts
+    command: >
+      bash -c "
+        /opt/mssql/bin/sqlservr &
+        sleep 30
+        /scripts/init_sqlserver.sh
+        /scripts/setup_cron.sh
+        wait
+      "
+    restart: unless-stopped
+    networks:
+      - db_network
+
+  # PostgreSQL
+  postgresql:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgresql
+    container_name: postgresql_db
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+      - ./backups:/backups
+      - ./scripts:/scripts
+    command: >
+      bash -c "
+        docker-entrypoint.sh postgres &
+        sleep 15
+        /scripts/init_postgresql.sh
+        /scripts/setup_cron.sh
+        wait
+      "
+    restart: unless-stopped
+    networks:
+      - db_network
+
+  # MongoDB
+  mongodb:
+    build:
+      context: .
+      dockerfile: Dockerfile.mongodb
+    container_name: mongodb_db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=admin123
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./backups:/backups
+      - ./scripts:/scripts
+    command: >
+      bash -c "
+        docker-entrypoint.sh mongod &
+        sleep 20
+        /scripts/init_mongodb.sh
+        /scripts/setup_cron.sh
+        wait
+      "
+    restart: unless-stopped
+    networks:
+      - db_network
+
+  # DynamoDB Local
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    container_name: dynamodb_local
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-dbPath", "/home/dynamodblocal/data"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - dynamodb_data:/home/dynamodblocal/data
+    restart: unless-stopped
+    networks:
+      - db_network
+
+  # MySQL
+  mysql:
+    build:
+      context: .
+      dockerfile: Dockerfile.mysql
+    container_name: mysql_db
+    environment:
+      - MYSQL_ROOT_PASSWORD=root123
+      - MYSQL_DATABASE=testdb
+      - MYSQL_USER=user
+      - MYSQL_PASSWORD=user123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backups:/backups
+      - ./scripts:/scripts
+    command: >
+      bash -c "
+        docker-entrypoint.sh mysqld &
+        sleep 20
+        /scripts/init_mysql.sh
+        /scripts/setup_cron.sh
+        wait
+      "
+    restart: unless-stopped
+    networks:
+      - db_network
+
+  # Adminer - Web-based database management tool
+  adminer:
+    image: adminer:latest
+    container_name: adminer_web
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      - db_network
+    depends_on:
+      - sqlserver
+      - postgresql
+      - mysql
+
+volumes:
+  sqlserver_data:
+  postgresql_data:
+  mongodb_data:
+  dynamodb_data:
+  mysql_data:
+
+networks:
+  db_network:
+    driver: bridge
